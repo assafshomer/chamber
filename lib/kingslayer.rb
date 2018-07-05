@@ -44,7 +44,7 @@ module Kingslayer
       if @password
         @iter=iter
       else
-        raise Kingslayer.wrong_ks_init_message if opts[:iter]
+        raise AES.wrong_ks_init_message if opts[:iter]
         @password = generate_256_bit_key
         @iter = 1
       end
@@ -80,7 +80,6 @@ module Kingslayer
       plaintext=File.read(plaintext_file_path)
       ciphertext=encrypt(plaintext)
       File.write(encrypted_file_path,ciphertext)
-      encrypted_file_path
     end
     alias :enc_file :encrypt_file
     alias :ef :encrypt_file
@@ -89,7 +88,6 @@ module Kingslayer
       ciphertext = File.read(encrypted_file_path)
       plaintext = decrypt(ciphertext)
       File.write(decrypted_file_path, plaintext)
-      decrypted_file_path
     end
     alias :dec_file :decrypt_file
     alias :df :decrypt_file
@@ -98,15 +96,34 @@ module Kingslayer
       'Iteration number can only be provided with a password'
     end
 
+    def self.short_efs
+    	'.enc'
+    end
+
+    def self.txt_suffix
+    	'.txt'
+    end
+
+    def self.short_dfs
+    	'.dec'
+    end
+
+    def self.encrypted_file_suffix
+    	short_efs + txt_suffix
+    end
+
+    def self.decrypted_file_suffix
+    	encrypted_file_suffix+short_dfs
+    end
+
     private
 
       def generate_salt(supplied_salt)
         if supplied_salt
           return supplied_salt.to_s[0,8].ljust(8,'.')
         end
-        # (1..8).map { rand(255).chr }.join
         s = ''
-        8.times { s << rand(255).chr }
+        8.times {s << rand(255).chr}
         s
       end
 

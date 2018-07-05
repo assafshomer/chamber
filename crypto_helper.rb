@@ -53,4 +53,10 @@ module CryptoHelper
 		FileUtils.rm_f zipped_filename
 		FileUtils.rm_f opts[:file_path]
 	end
+	
+	def stretch_key(password, iter, salt)
+		digest=OpenSSL::Digest::SHA256.new
+		len=digest.digest_length
+		OpenSSL::PKCS5.pbkdf2_hmac(password,salt,iter,len,digest)
+	end
 end
