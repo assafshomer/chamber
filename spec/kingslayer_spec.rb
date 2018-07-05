@@ -5,28 +5,29 @@ describe "Kingslayer" do
   let(:cipher) { Kingslayer::AES.new(password: "foobar") }
   let(:explicit_key) { OpenSSL::Cipher::AES256.new(:CBC).random_key.unpack('H*')[0] }
   let(:with_key) { Kingslayer::AES.new(password: explicit_key) }
+  let(:encrypted) { cipher.encrypt(secret_text) }
 
   describe "salt" do
-    let(:encrypted1) { cipher.e(secret_text, {:salt => salt}) }
+    let(:encrypted) { cipher.encrypt(secret_text, salt: salt) }
 
     describe "when supplied salt is too long, text should still encrypt/decrypt correctly" do
       let(:salt) { 'NaClNaClNaClNaClNaClNaClNaClNaClNaClNaCl' }
-      it { expect(cipher.decrypt(encrypted1)).to eq(secret_text) }
+      it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
 
     describe "when supplied salt is too short, text should still encrypt/decrypt correctly" do
       let(:salt) { 'NaCl' }
-      it { expect(cipher.decrypt(encrypted1)).to eq(secret_text) }
+      it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
 
     describe "when number is supplied for salt, text should still encrypt/decrypt correctly" do
       let(:salt) { 42 }
-      it { expect(cipher.decrypt(encrypted1)).to eq(secret_text) }
+      it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
 
     describe "when idiotic value is supplied for salt, text should still encrypt/decrypt correctly" do
       let(:salt) { {:whoknew => "I'm an idiot"} }
-      it { expect(cipher.decrypt(encrypted1)).to eq(secret_text) }
+      it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
   end
 
@@ -43,31 +44,31 @@ describe "Kingslayer" do
     end
 
     describe "without params should set password to a random key and iter to 1" do
-      let(:default) { Kingslayer::AES.new }
-      it { expect(default.hexkey).to be_nil }
-      it { expect(default.password).not_to be_nil }
-      it { expect(default.iter).to eq(1) }
+      let(:cipher) { Kingslayer::AES.new }
+      it { expect(cipher.hexkey).to be_nil }
+      it { expect(cipher.password).not_to be_nil }
+      it { expect(cipher.iter).to eq(1) }
     end
 
     describe "parameters" do
-      it "should not raise an error when using just a password" do
+      it "does not raise an error when using just a password" do
         expect { Kingslayer::AES.new(password: "password") }.not_to raise_error
       end
-      it "should raise an error when using just iterations" do
+      it "raises an error when using just iterations" do
         expect { Kingslayer::AES.new(iter: 2) }.to raise_error(Kingslayer::AES.wrong_ks_init_message)
       end
-      it "should not raise an error with empty constructor" do
+      it "does not raise an error with empty constructor" do
         expect { Kingslayer::AES.new() }.not_to raise_error
       end
     end
 
     describe "setup" do
-      it "should throw correct exception when decryption string is too short" do
-        expect { cipher.d("short") }.to raise_error(ArgumentError)
+      it "throws correct exception when decryption string is too short" do
+        expect { cipher.decrypt("short") }.to raise_error(ArgumentError)
       end
 
       describe "setup for encryption should generate non nil iv and key" do
-        before { cipher.e(secret_text) }
+        before { cipher.encrypt(secret_text) }
         it { expect(cipher.hexkey).not_to be_nil }
         it { expect(cipher.hexiv).not_to be_nil }
       end
@@ -75,7 +76,6 @@ describe "Kingslayer" do
   end
 
   describe "init with password and iterations" do
-    let(:encrypted) { cipher.encrypt(secret_text) }
     describe "text encryption and decryption" do
       it "should work with one instance" do
         expect(cipher.decrypt(encrypted)).to eq(secret_text)
@@ -126,7 +126,7 @@ describe "Kingslayer" do
       let(:decrypted_file_suffix) { Kingslayer::AES.decrypted_file_suffix }
       describe "should work correctly" do
         before do
-          cipher.ef(source_file_path, encrypted_file_path)
+          cipher.encrypt_file(source_file_path, encrypted_file_path)
           cipher.df(encrypted_file_path, decrypted_file_path)
         end
         it { expect(FileUtils.cmp(source_file_path,decrypted_file_path)).to be_truthy }
@@ -166,7 +166,7 @@ describe "Kingslayer" do
 
       it "should be compatible with OpenSSL upto initial garbage" do
         encrypted_file_path = Tempfile.new('secret.txt'+Kingslayer::AES.encrypted_file_suffix).path
-        cipher.ef(source_file_path, encrypted_file_path)
+        cipher.encrypt_file(source_file_path, encrypted_file_path)
         decrypted_file_path = Tempfile.new('secret.txt'+Kingslayer::AES.decrypted_file_suffix).path
         clean_file_path = Tempfile.new('clean.dec').path
         `openssl aes-256-cbc -d -in #{encrypted_file_path} -out #{decrypted_file_path} -K #{cipher.hexkey} -iv #{cipher.hexiv} -a`
