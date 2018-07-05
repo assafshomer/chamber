@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Cersi
   require 'openssl'
   require 'encryptor'
@@ -12,7 +14,7 @@ module Cersi
   def encrypt(secret, opts)
     password = opts[:password]
     iterations = opts[:iterations]
-    key = stretch_password(password, iterations) || 
+    key = stretch_password(password, iterations) ||
     iv = SecureRandom.random_bytes(12)
     salt = SecureRandom.random_bytes(16)
     Encryptor.encrypt(value: secret, key: key, iv: iv, salt: salt)

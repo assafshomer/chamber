@@ -1,0 +1,18 @@
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/BlockComments:
+  Exclude:
+    - spec/spec_helper.rb
+
+Metrics/LineLength:
+  Max: 100
+
+Metrics/BlockLength:
+  Max: 50
+  Exclude:
+    - spec/*
+
+Naming/UncommunicativeMethodParamName:
+  Exclude:
+    - lib/kingslayer.rb

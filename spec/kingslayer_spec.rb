@@ -1,22 +1,29 @@
+# frozen_string_literal: true
+
+require "tempfile"
+require "encryptor"
+require "securerandom"
 
 describe "Kingslayer" do
-  let(:secret_text) { 'Some funky secret 1234567890  66 text !@#%&*()$ +*(_P)&*()*%^%$&%!~@$#~`' }
+  let(:secret_text) { "Some funky secret 1234567890  66 text !@#%&*()$ +*(_P)&*()*%^%$&%!~@$#~`" }
   let(:source_file_path) { "spec/fixtures/secret.txt" }
   let(:cipher) { Kingslayer::AES.new(password: "foobar") }
-  let(:explicit_key) { OpenSSL::Cipher::AES256.new(:CBC).random_key.unpack('H*')[0] }
-  let(:with_key) { Kingslayer::AES.new(password: explicit_key) }
+  let(:explicit_key) { OpenSSL::Cipher::AES256.new(:CBC).random_key.unpack1("H*") }
   let(:encrypted) { cipher.encrypt(secret_text) }
+  let(:encrypted_file) { Tempfile.new("secret.txt#{encrypted_file_suffix}") }
+  let(:decrypted_file) { Tempfile.new("secret.txt#{decrypted_file_suffix}") }
+  let(:encrypted_file_suffix) { Kingslayer::AES.encrypted_file_suffix }
+  let(:decrypted_file_suffix) { Kingslayer::AES.decrypted_file_suffix }
 
   describe "salt" do
     let(:encrypted) { cipher.encrypt(secret_text, salt: salt) }
-
     describe "when supplied salt is too long, text should still encrypt/decrypt correctly" do
-      let(:salt) { 'NaClNaClNaClNaClNaClNaClNaClNaClNaClNaCl' }
+      let(:salt) { "NaClNaClNaClNaClNaClNaClNaClNaClNaClNaCl" }
       it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
 
     describe "when supplied salt is too short, text should still encrypt/decrypt correctly" do
-      let(:salt) { 'NaCl' }
+      let(:salt) { "NaCl" }
       it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
 
@@ -25,8 +32,8 @@ describe "Kingslayer" do
       it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
 
-    describe "when idiotic value is supplied for salt, text should still encrypt/decrypt correctly" do
-      let(:salt) { {:whoknew => "I'm an idiot"} }
+    describe "decrypts even if idiotic value supplied for salt" do
+      let(:salt) { { whoknew: "I'm an idiot" } }
       it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
   end
@@ -38,7 +45,7 @@ describe "Kingslayer" do
     end
 
     describe "with password and iterations should give both back" do
-      let(:cipher) { Kingslayer::AES.new(password: 'buzz', iter: 3) }
+      let(:cipher) { Kingslayer::AES.new(password: "buzz", iter: 3) }
       it { expect(cipher.password).to eq("buzz") }
       it { expect(cipher.iter).to eq(3) }
     end
@@ -51,14 +58,15 @@ describe "Kingslayer" do
     end
 
     describe "parameters" do
+      let(:error_msg) { Kingslayer::AES.wrong_ks_init_message }
       it "does not raise an error when using just a password" do
         expect { Kingslayer::AES.new(password: "password") }.not_to raise_error
       end
       it "raises an error when using just iterations" do
-        expect { Kingslayer::AES.new(iter: 2) }.to raise_error(Kingslayer::AES.wrong_ks_init_message)
+        expect { Kingslayer::AES.new(iter: 2) }.to raise_error(error_msg)
       end
       it "does not raise an error with empty constructor" do
-        expect { Kingslayer::AES.new() }.not_to raise_error
+        expect { Kingslayer::AES.new }.not_to raise_error
       end
     end
 
@@ -77,42 +85,36 @@ describe "Kingslayer" do
 
   describe "init with password and iterations" do
     describe "text encryption and decryption" do
-      it "should work with one instance" do
+      it "works with one instance" do
         expect(cipher.decrypt(encrypted)).to eq(secret_text)
       end
 
-      describe "should work with iterations" do
-        let(:strong) { Kingslayer::AES.new(password: "password",iter: 100000) }
-        let(:enc) { strong.encrypt(secret_text) }
-        it { expect(strong.decrypt(enc)).to eq(secret_text) }
+      describe "works with iterations" do
+        let(:cipher) { Kingslayer::AES.new(password: "password", iter: 100_000) }
+        let(:ct) { cipher.encrypt(secret_text) }
+        it { expect(cipher.decrypt(ct)).to eq(secret_text) }
       end
 
-      describe "should work with different instances" do
-        let(:encryptor) { Kingslayer::AES.new(password: "foobar",iter: 10) }
-        let(:decryptor) { Kingslayer::AES.new(password: "foobar",iter: 10) }
-        let(:enc) { encryptor.encrypt(secret_text) }
-        it { expect(decryptor.decrypt(enc)).to eq(secret_text) }
+      describe "works with different instances" do
+        let(:encryptor) { Kingslayer::AES.new(password: "foobar", iter: 10) }
+        let(:decryptor) { Kingslayer::AES.new(password: "foobar", iter: 10) }
+        let(:ct) { encryptor.encrypt(secret_text) }
+        it { expect(decryptor.decrypt(ct)).to eq(secret_text) }
       end
 
-      describe "should be compatible with OpenSSL upto initial garbage" do
-        let(:hexkey) { cipher.hexkey }
-        let(:hexiv) { cipher.hexiv }
-        let(:openssl)  do
-          cmd = `echo "#{encrypted}" | openssl aes-256-cbc -d -K #{hexkey} -iv #{hexiv} -a`
-          clean = cmd.chars.select(&:valid_encoding?).join
-          start_position = clean.index(/#{Regexp.escape(secret_text)}/)
-          clean[start_position..-1]
+      describe "OpenSSL compatibility (upto initial garbage)" do
+        let(:openssl) do
+          `echo "#{encrypted}" | openssl aes-256-cbc -d -K #{cipher.hexkey} -iv #{cipher.hexiv} -a`
         end
-        it { expect(openssl).to eq(secret_text) }
+        it { expect(clean_openssl_garbage(openssl, secret_text)).to eq(secret_text) }
       end
 
-      describe "repeated calls " do
+      describe "repeated calls" do
         let(:duplicate) { cipher.encrypt(secret_text) }
-        let(:salted) { cipher.encrypt(secret_text, salt: 'foobar') }
-        let(:duplicate_salted) { cipher.encrypt(secret_text, salt: 'foobar') }
-        it "should not be the same" do
-          expect(duplicate).not_to eq(encrypted)
-        end
+        let(:salted) { cipher.encrypt(secret_text, salt: "foobar") }
+        let(:duplicate_salted) { cipher.encrypt(secret_text, salt: "foobar") }
+        it { expect(duplicate).not_to eq(encrypted) }
+
         it "should not be the same even if using the same salt (due to random IV)" do
           expect(salted).not_to eq(duplicate_salted)
         end
@@ -120,144 +122,112 @@ describe "Kingslayer" do
     end
 
     describe "file encryption and decryption" do
-      let(:encrypted_file_path) { Tempfile.new('secret.txt'+encrypted_file_suffix).path }
-      let(:decrypted_file_path) { Tempfile.new('secret.txt'+decrypted_file_suffix).path }
-      let(:encrypted_file_suffix) { Kingslayer::AES.encrypted_file_suffix }
-      let(:decrypted_file_suffix) { Kingslayer::AES.decrypted_file_suffix }
-      describe "should work correctly" do
+      describe "gives back the plaintext" do
         before do
-          cipher.encrypt_file(source_file_path, encrypted_file_path)
-          cipher.df(encrypted_file_path, decrypted_file_path)
+          cipher.encrypt_file(source_file_path, encrypted_file.path)
+          cipher.decrypt_file(encrypted_file.path, decrypted_file.path)
         end
-        it { expect(FileUtils.cmp(source_file_path,decrypted_file_path)).to be_truthy }
+        it { expect(FileUtils.cmp(source_file_path, decrypted_file.path)).to be_truthy }
       end
-      describe "should work with iterations" do
-        let(:strong) { Kingslayer::AES.new(password: "password",iter: 100) }
-        let(:encrypted_file_path) { Tempfile.new('secret.txt'+encrypted_file_suffix).path }
-        let(:decrypted_file_path) { Tempfile.new('secret.txt'+decrypted_file_suffix).path }
+
+      describe "works with iterations" do
+        let(:strong) { Kingslayer::AES.new(password: "password", iter: 100) }
         before do
-          strong.ef(source_file_path,encrypted_file_path)
-          strong.df(encrypted_file_path, decrypted_file_path)
+          strong.encrypt_file(source_file_path, encrypted_file.path)
+          strong.decrypt_file(encrypted_file.path, decrypted_file.path)
         end
-        it { expect(FileUtils.cmp(source_file_path,decrypted_file_path)).to be_truthy }
+
+        it { expect(FileUtils.cmp(source_file_path, decrypted_file.path)).to be_truthy }
       end
+
       describe "should raise if supplied with wrong password or iteration" do
-        let(:strong) { Kingslayer::AES.new(password: "password",iter: 10) }
-        let(:wrong_itr) { Kingslayer::AES.new(password: "password",iter: 9) }
-        let(:wrong_pwd) { Kingslayer::AES.new(password: "passwOrd",iter: 10) }
-        let(:good_dec) { Kingslayer::AES.new(password: "password",iter: 10) }
-        let(:encrypted_file_path) { Tempfile.new('secret.txt'+encrypted_file_suffix).path }
-        let(:decrypted_file_path) { Tempfile.new('secret.txt'+decrypted_file_suffix).path }
-        let(:decrypted_wrong_itr_file_path) { Tempfile.new('secret.txt.enc.dec2').path }
-        let(:decrypted_wrong_pwd_file_path) { Tempfile.new('secret.txt.enc.dec3').path }
-        before do
-          strong.ef(source_file_path,encrypted_file_path)
+        let(:strong) { Kingslayer::AES.new(password: "password", iter: 10) }
+        let(:wrong_itr) { Kingslayer::AES.new(password: "password", iter: 9) }
+        let(:wrong_pwd) { Kingslayer::AES.new(password: "passwOrd", iter: 10) }
+        let(:good_dec) { Kingslayer::AES.new(password: "password", iter: 10) }
+        let(:decrypted_wrong_itr_file_path) { Tempfile.new("secret.txt.enc.dec2").path }
+        let(:decrypted_wrong_pwd_file_path) { Tempfile.new("secret.txt.enc.dec3").path }
+        before { strong.encrypt_file(source_file_path, encrypted_file.path) }
+
+        it "raises an error when decrypting with wrong number of iterations" do
+          expect { wrong_itr.decrypt_file(encrypted_file.path, decrypted_wrong_itr_file_path) }
+            .to raise_error("bad decrypt")
         end
-        it "should not raise an error when using a well instantiated decryptor" do
-          expect {good_dec.df(encrypted_file_path, decrypted_file_path)}.not_to raise_error
-        end
-        it "should raise an error when decrypting with a KS instantiated with the wrong number of iterations" do
-          expect {wrong_itr.df(encrypted_file_path, decrypted_wrong_itr_file_path)}.to raise_error('bad decrypt')
-        end
-        it "should raise an error when decrypting with a KS instantiated with the wrong pwd" do
-          expect {wrong_pwd.df(encrypted_file_path, decrypted_wrong_pwd_file_path)}.to raise_error('bad decrypt')
+
+        it "raises an error when decrypting with the wrong pwd" do
+          expect { wrong_pwd.decrypt_file(encrypted_file.path, decrypted_wrong_pwd_file_path) }
+            .to raise_error("bad decrypt")
         end
       end
 
-      it "should be compatible with OpenSSL upto initial garbage" do
-        encrypted_file_path = Tempfile.new('secret.txt'+Kingslayer::AES.encrypted_file_suffix).path
-        cipher.encrypt_file(source_file_path, encrypted_file_path)
-        decrypted_file_path = Tempfile.new('secret.txt'+Kingslayer::AES.decrypted_file_suffix).path
-        clean_file_path = Tempfile.new('clean.dec').path
-        `openssl aes-256-cbc -d -in #{encrypted_file_path} -out #{decrypted_file_path} -K #{cipher.hexkey} -iv #{cipher.hexiv} -a`
-        clean = File.read(decrypted_file_path).chars.select(&:valid_encoding?).join
-        secret_text = File.read(source_file_path)
-        regex = /#{Regexp.escape(secret_text)}/
-        start_position = clean.index(regex)
-        File.write(clean_file_path,clean[start_position..-1])
-        expect(FileUtils.cmp(source_file_path, clean_file_path)).to be_truthy
+      describe "OpenSSL compatibility (upto initial garbage)" do
+        let(:clean_file_path) { Tempfile.new("clean.dec").path }
+        let(:decrypted) { File.read(decrypted_file.path) }
+        let(:plaintext) { File.read(source_file_path) }
+        let(:k) { cipher.hexkey }
+        let(:iv) { cipher.hexiv }
+        let(:inp) { encrypted_file.path }
+        let(:oup) { decrypted_file.path }
+        before do
+          cipher.encrypt_file(source_file_path, encrypted_file.path)
+          `openssl aes-256-cbc -d -in #{inp} -out #{oup} -K #{k} -iv #{iv} -a`
+          File.write(clean_file_path, clean_openssl_garbage(decrypted, plaintext))
+        end
+        it "is compaitble" do
+          expect(FileUtils.cmp(source_file_path, clean_file_path)).to be_truthy
+        end
       end
     end
   end
 
   describe "init with init_key" do
-    subject { with_key }
+    let(:cipher) { Kingslayer::AES.new(password: explicit_key) }
     describe "text encryption and decryption" do
-      it "should work with one instance" do
-        encrypted = with_key.e(secret_text)
-        with_key.d(encrypted).should == secret_text
+      it "works with one instance" do
+        encrypted = cipher.encrypt(secret_text)
+        cipher.decrypt(encrypted).should == secret_text
       end
-      describe "should work with different instances" do
+
+      describe "works with different instances" do
         let(:encryptor) { Kingslayer::AES.new(password: explicit_key) }
         let(:decryptor) { Kingslayer::AES.new(password: explicit_key) }
-        let(:enc) { encryptor.e(secret_text) }
-        it { decryptor.d(enc).should == secret_text }
-        it {encryptor.iter.should == 1}
-        it {decryptor.iter.should == 1}
-      end
-      it "should be compatible with OpenSSL upto initial garbage" do
-        encrypted = with_key.e(secret_text)
-        hexkey = with_key.hexkey
-        hexiv = with_key.hexiv
-        from_openssl = `echo "#{encrypted}" | openssl aes-256-cbc -d -K #{hexkey} -iv #{hexiv} -a`
-        # from_openssl.chars.select(&:valid_encoding?).join.should =~ /#{secret_text}/
-        clean = from_openssl.chars.select(&:valid_encoding?).join
-        regex = /#{Regexp.escape(secret_text)}/
-        start_position = clean.index(regex)
-        clean[start_position..-1].should == secret_text
-      end
-      describe "repeated calls " do
-        let(:encrypted1) { with_key.e(secret_text) }
-        let(:encrypted2) { with_key.e(secret_text) }
-        let(:encrypted3) { with_key.e(secret_text, salt: 'foobar') }
-        let(:encrypted4) { with_key.e(secret_text, salt: 'foobar') }
-        it "should not be the same" do
-          encrypted1.should_not == encrypted2
-        end
-        it "should not be the same even if using the same salt (due to random IV)" do
-          encrypted3.should_not == encrypted4
-        end
+        let(:enc) { encryptor.encrypt(secret_text) }
+        it { expect(decryptor.decrypt(enc)).to eq(secret_text) }
+        it { expect(encryptor.iter).to eq(1) }
+        it { expect(decryptor.iter).to eq(1) }
       end
     end
 
     describe "file encryption and decryption" do
-      let(:encrypted_file_path) { Tempfile.new('secret.txt'+encrypted_file_suffix).path }
-      let(:decrypted_file_path) { Tempfile.new('secret.txt'+decrypted_file_suffix).path }
-      let(:encrypted_file_suffix) { Kingslayer::AES.encrypted_file_suffix }
-      let(:decrypted_file_suffix) { Kingslayer::AES.decrypted_file_suffix }
       describe "should work correctly" do
         before do
-          with_key.ef(source_file_path, encrypted_file_path)
-          with_key.df(encrypted_file_path, decrypted_file_path)
+          cipher.encrypt_file(source_file_path, encrypted_file.path)
+          cipher.decrypt_file(encrypted_file.path, decrypted_file.path)
         end
-        it { expect(FileUtils.cmp(source_file_path,decrypted_file_path)).to be_truthy }
+        it { expect(FileUtils.cmp(source_file_path, decrypted_file.path)).to be_truthy }
       end
       describe "should raise if supplied with wrong key" do
         let(:encryptor) { Kingslayer::AES.new(password: explicit_key) }
-        let(:wrong_key) { OpenSSL::Cipher::AES256.new(:CBC).random_key.unpack('H*')[0] }
+        let(:wrong_key) { OpenSSL::Cipher::AES256.new(:CBC).random_key.unpack1("H*") }
         let(:wrong_key_decryptor) { Kingslayer::AES.new(password: wrong_key) }
-        let(:encrypted_file_path) { Tempfile.new('secret.txt'+encrypted_file_suffix).path }
-        let(:wrong_key_decryptor_file_path) { Tempfile.new('secret.txt.enc.xxx').path }
+        let(:wrong_key_decryptor_file) { Tempfile.new("secret.txt.enc.xxx") }
         before do
-          encryptor.ef(source_file_path,encrypted_file_path)
+          encryptor.encrypt_file(source_file_path, encrypted_file.path)
         end
+
         it "should raise an error when decrypting with a KS instantiated with the wrong key" do
-          expect {wrong_key_decryptor.df(encrypted_file_path, wrong_key_decryptor_file_path)}.to raise_error('bad decrypt')
+          expect do
+            wrong_key_decryptor
+              .decrypt_file(encrypted_file.path, wrong_key_decryptor_file.path)
+          end.to raise_error("bad decrypt")
         end
-      end
-      it "should be compatible with OpenSSL upto initial garbage" do
-        encrypted_file_path = Tempfile.new('secret.txt'+encrypted_file_suffix).path
-        with_key.ef(source_file_path, encrypted_file_path)
-        decrypted_file_path = Tempfile.new('secret.txt'+decrypted_file_suffix).path
-        clean_file_path = Tempfile.new('clean.dec').path
-        `openssl aes-256-cbc -d -in #{encrypted_file_path} -out #{decrypted_file_path} -K #{with_key.hexkey} -iv #{with_key.hexiv} -a`
-        clean = File.read(decrypted_file_path).chars.select(&:valid_encoding?).join
-        secret_text = File.read(source_file_path)
-        regex = /#{Regexp.escape(secret_text)}/
-        start_position = clean.index(regex)
-        File.write(clean_file_path,clean[start_position..-1])
-        expect(FileUtils.cmp(source_file_path, clean_file_path)).to be_truthy
       end
     end
+  end
+
+  def clean_openssl_garbage(plaintext, ciphertext)
+    clean = plaintext.chars.select(&:valid_encoding?).join
+    position = clean.index(/#{Regexp.escape(ciphertext)}/)
+    clean[position..-1]
   end
 end

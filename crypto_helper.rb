@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module CryptoHelper
 	require 'fileutils'
 	require './kingslayer.rb'
@@ -47,16 +49,16 @@ module CryptoHelper
 	def decrypt_directory(opts = {})
 		puts "decryption options are: #{opts}"
 		decrypted_file_path = decrypt(opts)
-		zipped_filename = decrypted_file_path.gsub(".enc.dec","")
+		zipped_filename = decrypted_file_path.gsub(".enc.dec", "")
 		FileUtils.mv(decrypted_file_path, zipped_filename)
 		`unzip #{zipped_filename}`
 		FileUtils.rm_f zipped_filename
 		FileUtils.rm_f opts[:file_path]
 	end
-	
+
 	def stretch_key(password, iter, salt)
-		digest=OpenSSL::Digest::SHA256.new
-		len=digest.digest_length
-		OpenSSL::PKCS5.pbkdf2_hmac(password,salt,iter,len,digest)
+		digest = OpenSSL::Digest::SHA256.new
+		len = digest.digest_length
+		OpenSSL::PKCS5.pbkdf2_hmac(password, salt, iter, len, digest)
 	end
 end
