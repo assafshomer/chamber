@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "tempfile"
-require "encryptor"
 require "securerandom"
 
 describe "Kingslayer" do

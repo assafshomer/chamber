@@ -7,7 +7,6 @@ module Kingslayer
 
   # Encrypts and Decrypts with AES256 in CBC mode with salt and random IV
   class AES
-
     attr_reader :cipher, :password, :iter, :hexkey, :hexiv
 
     def initialize(opts = {})

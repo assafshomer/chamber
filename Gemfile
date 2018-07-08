@@ -3,8 +3,7 @@
 # Gemfile
 source "https://rubygems.org"
 
+gem "pry"
 gem "rspec"
 gem "rspec-its"
-gem "encryptor"
-gem "pry"
 gem "rubocop", require: false
