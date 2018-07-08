@@ -17,7 +17,7 @@ module Kingslayer
 
     def encrypt(data, opts = {})
       salt = generate_salt(opts[:salt])
-      key = stretch_key(password, iter, salt)
+      key = stretch_password(password, iter, salt)
       iv = cipher.random_iv
       setup_cipher(:encrypt, key, iv)
       e = cipher.update(data) + cipher.final
@@ -28,7 +28,7 @@ module Kingslayer
     def decrypt(ciphertext)
       raise ArgumentError, "Data is too short" unless ciphertext.length >= 16
       salt, iv, ct = extract_meta(ciphertext).values
-      key = stretch_key(password, iter, salt)
+      key = stretch_password(password, iter, salt)
       setup_cipher(:decrypt, key, iv)
       cipher.update(ct) + cipher.final
     end
@@ -81,7 +81,7 @@ module Kingslayer
       (1..8).map { rand(255).chr }.join
     end
 
-    def stretch_key(password, iter, salt)
+    def stretch_password(password, iter, salt)
       digest = OpenSSL::Digest::SHA256.new
       len = digest.digest_length
       OpenSSL::PKCS5.pbkdf2_hmac(password, salt, iter, len, digest)
