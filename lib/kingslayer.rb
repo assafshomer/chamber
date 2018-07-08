@@ -1,44 +1,42 @@
 # frozen_string_literal: true
 
+# Encrypts and Decrypts text, files and directories using AES256
 module Kingslayer
   require "openssl"
   require "base64"
 
+  # Encrypts and Decrypts with AES256 in CBC mode with salt and random IV
   class AES
+
     attr_reader :cipher, :password, :iter, :hexkey, :hexiv
 
     def initialize(opts = {})
-      @password = opts[:password]
-      iter = [(opts[:iter]).to_i, 1].max
-      if @password
-        @iter = iter
-      else
-        raise AES.wrong_ks_init_message if opts[:iter]
-        @password = generate_256_bit_key
-        @iter = 1
-      end
+      @iter = [(opts[:iter]).to_i, 1].max
+      @password = opts[:password] || generate_256_bit_key
       @cipher = OpenSSL::Cipher::AES256.new("CBC")
     end
 
-    def encrypt(data, opts={})
+    def encrypt(data, opts = {})
       salt = generate_salt(opts[:salt])
       key = stretch_key(password, iter, salt)
       iv = cipher.random_iv
       setup_cipher(:encrypt, key, iv)
       e = cipher.update(data) + cipher.final
       e = "Salted__#{salt}#{iv}#{e}"
-      opts[:binary] ? e : Base64.encode64(e)
+      Base64.encode64(e)
     end
 
-    def decrypt(data, opts = {})
-      raise ArgumentError, "Data is too short" unless data.length >= 16
-      data = Base64.decode64(data) unless opts[:binary]
-      salt = data[8..15]
-      iv = data[16..31]
-      data = data[32..-1]
+    def decrypt(ciphertext)
+      raise ArgumentError, "Data is too short" unless ciphertext.length >= 16
+      salt, iv, ct = extract_meta(ciphertext).values
       key = stretch_key(password, iter, salt)
       setup_cipher(:decrypt, key, iv)
-      cipher.update(data) + cipher.final
+      cipher.update(ct) + cipher.final
+    end
+
+    def extract_meta(ct)
+      raw = Base64.decode64(ct)
+      { salt: raw[8..15], iv: raw[16..31], ct: raw[32..-1] }
     end
 
     def encrypt_file(plaintext_file_path, encrypted_file_path)

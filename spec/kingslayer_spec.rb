@@ -58,13 +58,10 @@ describe "Kingslayer" do
     end
 
     describe "parameters" do
-      let(:error_msg) { Kingslayer::AES.wrong_ks_init_message }
       it "does not raise an error when using just a password" do
         expect { Kingslayer::AES.new(password: "password") }.not_to raise_error
       end
-      it "raises an error when using just iterations" do
-        expect { Kingslayer::AES.new(iter: 2) }.to raise_error(error_msg)
-      end
+
       it "does not raise an error with empty constructor" do
         expect { Kingslayer::AES.new }.not_to raise_error
       end
