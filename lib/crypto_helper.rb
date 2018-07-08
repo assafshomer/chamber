@@ -3,7 +3,7 @@
 # Encrypts and decrypts files and directories with Kingslayer
 module CryptoHelper
   require "fileutils"
-  require "./kingslayer.rb"
+  require "kingslayer"
   include Kingslayer
   PBKDF2_ITERATIONS = 10
   ENCRYPTED_FILE_SUFFIX = ".enc"

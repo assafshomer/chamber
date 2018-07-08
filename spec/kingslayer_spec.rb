@@ -16,40 +16,40 @@ describe "Kingslayer" do
 
   describe "salt" do
     let(:encrypted) { cipher.encrypt(secret_text, salt: salt) }
-    describe "when supplied salt is too long, text should still encrypt/decrypt correctly" do
+    describe "Encrypts/decrypts correctly when supplied salt is too long" do
       let(:salt) { "NaClNaClNaClNaClNaClNaClNaClNaClNaClNaCl" }
       it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
 
-    describe "when supplied salt is too short, text should still encrypt/decrypt correctly" do
+    describe "Encrypts/decrypts correctly when supplied salt is too short" do
       let(:salt) { "NaCl" }
       it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
 
-    describe "when number is supplied for salt, text should still encrypt/decrypt correctly" do
+    describe "Encrypts/decrypts correctly when supplied salt is Numeric" do
       let(:salt) { 42 }
       it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
 
-    describe "decrypts even if idiotic value supplied for salt" do
+    describe "Encrypts/decrypts correctly even if idiotic value supplied for salt" do
       let(:salt) { { whoknew: "I'm an idiot" } }
       it { expect(cipher.decrypt(encrypted)).to eq(secret_text) }
     end
   end
 
   describe "initialization" do
-    describe "with password and no iterations should give password back and set iterations to 1" do
+    describe "sets password and iterations to 1 given passord and no iterations" do
       it { expect(cipher.password).to eq("foobar") }
       it { expect(cipher.iter).to eq(1) }
     end
 
-    describe "with password and iterations should give both back" do
+    describe "sets password and iterations when giveb both" do
       let(:cipher) { Kingslayer::AES.new(password: "buzz", iter: 3) }
       it { expect(cipher.password).to eq("buzz") }
       it { expect(cipher.iter).to eq(3) }
     end
 
-    describe "without params should set password to a random key and iter to 1" do
+    describe "without params sets password to a random key and iter to 1" do
       let(:cipher) { Kingslayer::AES.new }
       it { expect(cipher.hexkey).to be_nil }
       it { expect(cipher.password).not_to be_nil }
@@ -71,7 +71,7 @@ describe "Kingslayer" do
         expect { cipher.decrypt("short") }.to raise_error(ArgumentError)
       end
 
-      describe "setup for encryption should generate non nil iv and key" do
+      describe "setup for encryption sets key and iv" do
         before { cipher.encrypt(secret_text) }
         it { expect(cipher.hexkey).not_to be_nil }
         it { expect(cipher.hexiv).not_to be_nil }
@@ -111,7 +111,7 @@ describe "Kingslayer" do
         let(:duplicate_salted) { cipher.encrypt(secret_text, salt: "foobar") }
         it { expect(duplicate).not_to eq(encrypted) }
 
-        it "should not be the same even if using the same salt (due to random IV)" do
+        it "are different even if using the same salt (due to random IV)" do
           expect(salted).not_to eq(duplicate_salted)
         end
       end
@@ -136,7 +136,7 @@ describe "Kingslayer" do
         it { expect(FileUtils.cmp(source_file_path, decrypted_file.path)).to be_truthy }
       end
 
-      describe "should raise if supplied with wrong password or iteration" do
+      describe "raises if supplied with wrong password or iteration" do
         let(:strong) { Kingslayer::AES.new(password: "password", iter: 10) }
         let(:wrong_itr) { Kingslayer::AES.new(password: "password", iter: 9) }
         let(:wrong_pwd) { Kingslayer::AES.new(password: "passwOrd", iter: 10) }
@@ -181,7 +181,7 @@ describe "Kingslayer" do
     describe "text encryption and decryption" do
       it "works with one instance" do
         encrypted = cipher.encrypt(secret_text)
-        cipher.decrypt(encrypted).should == secret_text
+        expect(cipher.decrypt(encrypted)).to eq(secret_text)
       end
 
       describe "works with different instances" do
@@ -195,14 +195,16 @@ describe "Kingslayer" do
     end
 
     describe "file encryption and decryption" do
-      describe "should work correctly" do
-        before do
-          cipher.encrypt_file(source_file_path, encrypted_file.path)
-          cipher.decrypt_file(encrypted_file.path, decrypted_file.path)
-        end
-        it { expect(FileUtils.cmp(source_file_path, decrypted_file.path)).to be_truthy }
+      before do
+        cipher.encrypt_file(source_file_path, encrypted_file.path)
+        cipher.decrypt_file(encrypted_file.path, decrypted_file.path)
       end
-      describe "should raise if supplied with wrong key" do
+
+      it "works correctly" do
+        expect(FileUtils.cmp(source_file_path, decrypted_file.path)).to be_truthy
+      end
+
+      describe "raises if supplied with wrong key" do
         let(:encryptor) { Kingslayer::AES.new(password: explicit_key) }
         let(:wrong_key) { OpenSSL::Cipher::AES256.new(:CBC).random_key.unpack1("H*") }
         let(:wrong_key_decryptor) { Kingslayer::AES.new(password: wrong_key) }
@@ -211,7 +213,7 @@ describe "Kingslayer" do
           encryptor.encrypt_file(source_file_path, encrypted_file.path)
         end
 
-        it "should raise an error when decrypting with a KS instantiated with the wrong key" do
+        it "raises when decrypting with a KS instantiated with wrong key" do
           expect do
             wrong_key_decryptor
               .decrypt_file(encrypted_file.path, wrong_key_decryptor_file.path)

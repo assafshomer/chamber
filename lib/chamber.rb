@@ -5,7 +5,7 @@ module Chamber
   require "base64"
   require "openssl"
   require "fileutils"
-  require "./crypto_helper"
+  require "crypto_helper"
   include CryptoHelper
 
   def run
