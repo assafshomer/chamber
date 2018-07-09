@@ -5,10 +5,10 @@ module Chamber
   require "base64"
   require "openssl"
   require "fileutils"
-  require "crypto_helper"
+  require "./lib/crypto_helper.rb"
   include CryptoHelper
 
-  def run
+  def self.run
     puts "Encrypt or Decrypt? (E/D)"
 
     if gets.chomp.start_with?("E")
@@ -18,7 +18,7 @@ module Chamber
     end
   end
 
-  def read_encryption_options
+  def self.read_encryption_options
     puts "Enter dir path"
     dir_path = gets.chomp
     puts "Enter Password (optional)"
@@ -32,7 +32,7 @@ module Chamber
     }
   end
 
-  def read_decryption_options
+  def self.read_decryption_options
     puts "Enter zipped dir file name"
     file_path = gets.chomp
     puts "Enter Password or Key"
@@ -46,7 +46,7 @@ module Chamber
     }
   end
 
-  def handle_empty(input)
+  def self.handle_empty(input)
     input unless input.to_s.strip.empty?
   end
 end
