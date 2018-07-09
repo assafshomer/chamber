@@ -9,10 +9,8 @@ describe "Kingslayer" do
   let(:cipher) { Kingslayer::AES.new(password: "foobar") }
   let(:explicit_key) { OpenSSL::Cipher::AES256.new(:CBC).random_key.unpack1("H*") }
   let(:encrypted) { cipher.encrypt(secret_text) }
-  let(:encrypted_file) { Tempfile.new("secret.txt#{encrypted_file_suffix}") }
-  let(:decrypted_file) { Tempfile.new("secret.txt#{decrypted_file_suffix}") }
-  let(:encrypted_file_suffix) { Kingslayer::AES.encrypted_file_suffix }
-  let(:decrypted_file_suffix) { Kingslayer::AES.decrypted_file_suffix }
+  let(:encrypted_file) { Tempfile.new("secret.txt#{Kingslayer::ENCRYPTED_FILE_SUFFIX}") }
+  let(:decrypted_file) { Tempfile.new("secret.txt#{Kingslayer::DECRYPTED_FILE_SUFFIX}") }
 
   describe "salt" do
     let(:encrypted) { cipher.encrypt(secret_text, salt: salt) }

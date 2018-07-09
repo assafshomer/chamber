@@ -4,6 +4,8 @@
 module Kingslayer
   require "openssl"
   require "base64"
+  ENCRYPTED_FILE_SUFFIX = ".enc.txt"
+  DECRYPTED_FILE_SUFFIX = ".dec"
 
   # Encrypts and Decrypts with AES256 in CBC mode with salt and random IV
   class AES
@@ -50,28 +52,8 @@ module Kingslayer
       File.write(decrypted_file_path, plaintext)
     end
 
-    def self.wrong_ks_init_message
-      "Iteration number can only be provided with a password"
-    end
-
-    def self.short_efs
-      ".enc"
-    end
-
-    def self.txt_suffix
-      ".txt"
-    end
-
-    def self.short_dfs
-      ".dec"
-    end
-
-    def self.encrypted_file_suffix
-      "#{short_efs}#{txt_suffix}"
-    end
-
     def self.decrypted_file_suffix
-      "#{encrypted_file_suffix}#{short_dfs}"
+      "#{ENCRYPTED_FILE_SUFFIX}.dec"
     end
 
     private
