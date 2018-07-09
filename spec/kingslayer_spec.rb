@@ -40,20 +40,20 @@ describe "Kingslayer" do
   describe "initialization" do
     describe "sets password and iterations to 1 given passord and no iterations" do
       it { expect(cipher.password).to eq("foobar") }
-      it { expect(cipher.iter).to eq(1) }
+      it { expect(cipher.iterations).to eq(1) }
     end
 
     describe "sets password and iterations when giveb both" do
-      let(:cipher) { Kingslayer::AES.new(password: "buzz", iter: 3) }
+      let(:cipher) { Kingslayer::AES.new(password: "buzz", iterations: 3) }
       it { expect(cipher.password).to eq("buzz") }
-      it { expect(cipher.iter).to eq(3) }
+      it { expect(cipher.iterations).to eq(3) }
     end
 
     describe "without params sets password to a random key and iter to 1" do
       let(:cipher) { Kingslayer::AES.new }
       it { expect(cipher.hexkey).to be_nil }
       it { expect(cipher.password).not_to be_nil }
-      it { expect(cipher.iter).to eq(1) }
+      it { expect(cipher.iterations).to eq(1) }
     end
 
     describe "parameters" do
@@ -86,14 +86,14 @@ describe "Kingslayer" do
       end
 
       describe "works with iterations" do
-        let(:cipher) { Kingslayer::AES.new(password: "password", iter: 100_000) }
+        let(:cipher) { Kingslayer::AES.new(password: "password", iterations: 100_000) }
         let(:ct) { cipher.encrypt(secret_text) }
         it { expect(cipher.decrypt(ct)).to eq(secret_text) }
       end
 
       describe "works with different instances" do
-        let(:encryptor) { Kingslayer::AES.new(password: "foobar", iter: 10) }
-        let(:decryptor) { Kingslayer::AES.new(password: "foobar", iter: 10) }
+        let(:encryptor) { Kingslayer::AES.new(password: "foobar", iterations: 10) }
+        let(:decryptor) { Kingslayer::AES.new(password: "foobar", iterations: 10) }
         let(:ct) { encryptor.encrypt(secret_text) }
         it { expect(decryptor.decrypt(ct)).to eq(secret_text) }
       end
@@ -127,7 +127,7 @@ describe "Kingslayer" do
       end
 
       describe "works with iterations" do
-        let(:strong) { Kingslayer::AES.new(password: "password", iter: 100) }
+        let(:strong) { Kingslayer::AES.new(password: "password", iterations: 100) }
         before do
           strong.encrypt_file(source_file_path, encrypted_file.path)
           strong.decrypt_file(encrypted_file.path, decrypted_file.path)
@@ -137,10 +137,10 @@ describe "Kingslayer" do
       end
 
       describe "raises if supplied with wrong password or iteration" do
-        let(:strong) { Kingslayer::AES.new(password: "password", iter: 10) }
-        let(:wrong_itr) { Kingslayer::AES.new(password: "password", iter: 9) }
-        let(:wrong_pwd) { Kingslayer::AES.new(password: "passwOrd", iter: 10) }
-        let(:good_dec) { Kingslayer::AES.new(password: "password", iter: 10) }
+        let(:strong) { Kingslayer::AES.new(password: "password", iterations: 10) }
+        let(:wrong_itr) { Kingslayer::AES.new(password: "password", iterations: 9) }
+        let(:wrong_pwd) { Kingslayer::AES.new(password: "passwOrd", iterations: 10) }
+        let(:good_dec) { Kingslayer::AES.new(password: "password", iterations: 10) }
         let(:decrypted_wrong_itr_file_path) { Tempfile.new("secret.txt.enc.dec2").path }
         let(:decrypted_wrong_pwd_file_path) { Tempfile.new("secret.txt.enc.dec3").path }
         before { strong.encrypt_file(source_file_path, encrypted_file.path) }
@@ -189,8 +189,8 @@ describe "Kingslayer" do
         let(:decryptor) { Kingslayer::AES.new(password: explicit_key) }
         let(:enc) { encryptor.encrypt(secret_text) }
         it { expect(decryptor.decrypt(enc)).to eq(secret_text) }
-        it { expect(encryptor.iter).to eq(1) }
-        it { expect(decryptor.iter).to eq(1) }
+        it { expect(encryptor.iterations).to eq(1) }
+        it { expect(decryptor.iterations).to eq(1) }
       end
     end
 

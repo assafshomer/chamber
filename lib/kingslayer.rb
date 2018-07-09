@@ -7,17 +7,17 @@ module Kingslayer
 
   # Encrypts and Decrypts with AES256 in CBC mode with salt and random IV
   class AES
-    attr_reader :cipher, :password, :iter, :hexkey, :hexiv
+    attr_reader :cipher, :password, :iterations, :hexkey, :hexiv
 
     def initialize(opts = {})
-      @iter = [(opts[:iter]).to_i, 1].max
+      @iterations = [(opts[:iterations]).to_i, 1].max
       @password = opts[:password] || generate_256_bit_key
       @cipher = OpenSSL::Cipher::AES256.new("CBC")
     end
 
     def encrypt(data, opts = {})
       salt = generate_salt(opts[:salt])
-      key = stretch_password(password, iter, salt)
+      key = stretch_password(password, iterations, salt)
       iv = cipher.random_iv
       setup_cipher(:encrypt, key, iv)
       e = cipher.update(data) + cipher.final
@@ -28,7 +28,7 @@ module Kingslayer
     def decrypt(ciphertext)
       raise ArgumentError, "Data is too short" unless ciphertext.length >= 16
       salt, iv, ct = extract_meta(ciphertext).values
-      key = stretch_password(password, iter, salt)
+      key = stretch_password(password, iterations, salt)
       setup_cipher(:decrypt, key, iv)
       cipher.update(ct) + cipher.final
     end
@@ -81,10 +81,10 @@ module Kingslayer
       (1..8).map { rand(255).chr }.join
     end
 
-    def stretch_password(password, iter, salt)
+    def stretch_password(password, iterations, salt)
       digest = OpenSSL::Digest::SHA256.new
       len = digest.digest_length
-      OpenSSL::PKCS5.pbkdf2_hmac(password, salt, iter, len, digest)
+      OpenSSL::PKCS5.pbkdf2_hmac(password, salt, iterations, len, digest)
     end
 
     def setup_cipher(method, key, iv)
