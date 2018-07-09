@@ -5,8 +5,8 @@ module Chamber
   require "base64"
   require "openssl"
   require "fileutils"
-  require "./lib/crypto_helper.rb"
-  include CryptoHelper
+  require "./lib/cersi.rb"
+  include Cersi
 
   def self.run
     puts "Encrypt or Decrypt? (E/D)"

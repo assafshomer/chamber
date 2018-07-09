@@ -4,8 +4,6 @@
 module Kingslayer
   require "openssl"
   require "base64"
-  ENCRYPTED_FILE_SUFFIX = ".enc.txt"
-  DECRYPTED_FILE_SUFFIX = ".dec"
 
   # Encrypts and Decrypts with AES256 in CBC mode with salt and random IV
   class AES
@@ -50,10 +48,6 @@ module Kingslayer
       ciphertext = File.read(encrypted_file_path)
       plaintext = decrypt(ciphertext)
       File.write(decrypted_file_path, plaintext)
-    end
-
-    def self.decrypted_file_suffix
-      "#{ENCRYPTED_FILE_SUFFIX}.dec"
     end
 
     private

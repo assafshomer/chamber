@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Encrypts and decrypts files and directories with Kingslayer
-module CryptoHelper
+module Cersi
   require "fileutils"
   require "./lib/kingslayer.rb"
   include Kingslayer
